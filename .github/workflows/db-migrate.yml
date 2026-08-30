@@ -1,0 +1,31 @@
+name: Database Migrations
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+
+      - name: Run migrations (staging)
+        if: github.event.inputs.target == 'staging' || github.event_name == 'push'
+        run: supabase db push --db-url ${{ secrets.SUPABASE_STAGING_DB_URL }}
+
+      - name: Run migrations (production)
+        if: github.event.inputs.target == 'production'
+        run: supabase db push --db-url ${{ secrets.SUPABASE_PROD_DB_URL }}

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+.npm/
+*.log
+
+.DS_Store
+Thumbs.db
+
+supabase/.temp/

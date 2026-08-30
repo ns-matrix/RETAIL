@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <title>WorkFlow Pay</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="main-content">
+    <div class="app-header">
+      <h1 id="app-title">WorkFlow Pay</h1>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-outline" id="header-action-btn" style="display:none;"></button>
+      </div>
+    </div>
+
+    <div id="content" class="container">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" id="bottom-nav" style="display:none;">
+    <a href="#/" class="nav-item active" data-route="/">
+      <span class="nav-icon">&#9750;</span>
+      <span>Home</span>
+    </a>
+    <a href="#/orders" class="nav-item" data-route="/orders">
+      <span class="nav-icon">&#9733;</span>
+      <span>Orders</span>
+    </a>
+    <a href="#/earnings" class="nav-item" data-route="/earnings">
+      <span class="nav-icon">&#9830;</span>
+      <span>Earnings</span>
+    </a>
+    <a href="#/payments" class="nav-item" data-route="/payments">
+      <span class="nav-icon">&#9829;</span>
+      <span>Payments</span>
+    </a>
+    <a href="#/profile" class="nav-item" data-route="/profile">
+      <span class="nav-icon">&#9786;</span>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Scripts: order matters — infrastructure first, then components, then screens -->
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/realtime.js"></script>
+  <script src="components/modal.js"></script>
+  <script src="components/status-badge.js"></script>
+  <script src="components/progress-bar.js"></script>
+  <script src="components/order-card.js"></script>
+  <script src="js/user/onboarding.js"></script>
+  <script src="js/user/dashboard.js"></script>
+  <script src="js/user/orders.js"></script>
+  <script src="js/user/earnings.js"></script>
+  <script src="js/user/payments.js"></script>
+  <script src="js/user/profile.js"></script>
+  <script>
+    // Register routes BEFORE init
+    registerRoute('/login', renderLogin);
+    registerRoute('/register', renderRegister);
+    registerRoute('/', renderDashboard);
+    registerRoute('/orders', renderOrdersList);
+    registerRoute('/orders/:id', renderOrderDetail);
+    registerRoute('/earnings', renderEarnings);
+    registerRoute('/payments', renderPayments);
+    registerRoute('/payments/:id', renderPaymentDetail);
+    registerRoute('/profile', renderProfilePage);
+    registerRoute('/profile/edit', renderProfileEdit);
+    registerRoute('/profile/address', renderAddressForm);
+    registerRoute('/profile/bank', renderBankForm);
+    registerRoute('/profile/documents', renderDocuments);
+    registerRoute('*', render404);
+
+    // Session listener — drives auth state
+    const supabase = getSupabase();
+    let authInitialized = false;
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      app.set('session', session);
+
+      if (session) {
+        try {
+          const profile = await fetchUserProfile(session.user.id);
+          app.set('user', profile);
+          document.getElementById('bottom-nav').style.display = '';
+        } catch (e) {
+          console.error('Failed to load user profile:', e);
+        }
+      } else {
+        app.set('user', null);
+        document.getElementById('bottom-nav').style.display = 'none';
+      }
+
+      // First auth event — do initial navigation
+      if (!authInitialized) {
+        authInitialized = true;
+        const hash = window.location.hash.slice(1) || '/';
+        const publicRoutes = ['/login', '/register'];
+
+        if (session && publicRoutes.includes(hash)) {
+          navigate('/');
+        } else if (!session && !publicRoutes.includes(hash)) {
+          navigate('/login');
+        } else {
+          handleRoute();
+        }
+      } else {
+        // Subsequent auth events — redirect as needed
+        const hash = window.location.hash.slice(1) || '/';
+        const publicRoutes = ['/login', '/register'];
+
+        if (!session && !publicRoutes.includes(hash)) {
+          navigate('/login');
+        }
+      }
+    });
+
+    function updateNavBadges() {
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        item.classList.toggle('active', item.dataset.route === app.get('currentPage'));
+      });
+    }
+
+    // Show loading while auth initializes
+    document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading...</p></div>';
+  </script>
+</body>
+</html>

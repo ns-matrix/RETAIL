@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <title>WorkFlow Pay — Admin</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar" style="display:none;">
+    <div class="sidebar-brand">WorkFlow Pay Admin</div>
+    <nav class="sidebar-nav">
+      <a href="#/dashboard" class="sidebar-link active" data-route="/dashboard">Dashboard</a>
+      <a href="#/products" class="sidebar-link" data-route="/products">Products</a>
+      <a href="#/orders" class="sidebar-link" data-route="/orders">Orders</a>
+      <a href="#/verification" class="sidebar-link" data-route="/verification">Verification Queue</a>
+      <a href="#/payouts" class="sidebar-link" data-route="/payouts">Payouts</a>
+      <a href="#/users" class="sidebar-link" data-route="/users">Users</a>
+      <a href="#/analytics" class="sidebar-link" data-route="/analytics">Analytics</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-outline btn-block btn-sm" onclick="adminSignOut()">Sign Out</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="app-header">
+      <h1 id="admin-page-title">Admin</h1>
+      <div class="header-actions">
+        <span id="admin-user-name" class="text-muted" style="font-size:0.85rem;"></span>
+      </div>
+    </div>
+
+    <div id="content" class="container">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" id="bottom-nav" style="display:none;">
+    <a href="#/dashboard" class="nav-item active" data-route="/dashboard">
+      <span class="nav-icon">&#9750;</span>
+      <span>Home</span>
+    </a>
+    <a href="#/orders" class="nav-item" data-route="/orders">
+      <span class="nav-icon">&#9733;</span>
+      <span>Orders</span>
+    </a>
+    <a href="#/verification" class="nav-item" data-route="/verification">
+      <span class="nav-icon">&#10003;</span>
+      <span>Verify</span>
+    </a>
+    <a href="#/payouts" class="nav-item" data-route="/payouts">
+      <span class="nav-icon">&#8377;</span>
+      <span>Payouts</span>
+    </a>
+    <a href="#/users" class="nav-item" data-route="/users">
+      <span class="nav-icon">&#9786;</span>
+      <span>Users</span>
+    </a>
+  </nav>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="components/modal.js"></script>
+  <script src="components/status-badge.js"></script>
+  <script src="components/progress-bar.js"></script>
+  <script src="components/order-card.js"></script>
+  <script src="js/admin/products.js"></script>
+  <script src="js/admin/orders.js"></script>
+  <script src="js/admin/verification-queue.js"></script>
+  <script src="js/admin/payouts.js"></script>
+  <script src="js/admin/users.js"></script>
+  <script src="js/admin/analytics.js"></script>
+  <script>
+    // Register routes BEFORE init
+    registerRoute('/login', renderAdminLogin);
+    registerRoute('/dashboard', renderAdminDashboard);
+    registerRoute('/products', renderProducts);
+    registerRoute('/products/new', renderProductForm);
+    registerRoute('/products/:id/edit', renderProductForm);
+    registerRoute('/orders', renderAdminOrders);
+    registerRoute('/orders/new', renderAdminOrderForm);
+    registerRoute('/verification', renderVerificationQueue);
+    registerRoute('/verification/:id', renderVerificationDetail);
+    registerRoute('/payouts', renderPayouts);
+    registerRoute('/payouts/new', renderPayoutForm);
+    registerRoute('/users', renderUsers);
+    registerRoute('/users/:id', renderUserDetail);
+    registerRoute('/analytics', renderAnalytics);
+    registerRoute('*', render404);
+
+    function adminSignOut() { signOut(); }
+    function updateAdminNav() {
+      const route = app.get('currentPage');
+      document.querySelectorAll('.sidebar-link, .nav-item').forEach((item) => {
+        item.classList.toggle('active', item.dataset.route === route);
+      });
+    }
+
+    // Session listener
+    const supabase = getSupabase();
+    let authInitialized = false;
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      app.set('session', session);
+
+      if (session) {
+        try {
+          const adminUser = await fetchAdminUser(session.user.id);
+          app.set('adminUser', adminUser);
+          document.getElementById('admin-user-name').textContent = adminUser.full_name || '';
+          document.getElementById('sidebar').style.display = '';
+          document.getElementById('bottom-nav').style.display = '';
+        } catch (e) {
+          console.error('Not an admin user:', e);
+          app.set('adminUser', null);
+          document.getElementById('sidebar').style.display = 'none';
+          document.getElementById('bottom-nav').style.display = 'none';
+        }
+      } else {
+        app.set('adminUser', null);
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('bottom-nav').style.display = 'none';
+      }
+
+      if (!authInitialized) {
+        authInitialized = true;
+        const hash = window.location.hash.slice(1) || '/';
+        const publicRoutes = ['/login'];
+
+        if (session && publicRoutes.includes(hash)) {
+          navigate('/dashboard');
+        } else if (!session && !publicRoutes.includes(hash)) {
+          navigate('/login');
+        } else {
+          handleRoute();
+        }
+      } else {
+        const hash = window.location.hash.slice(1) || '/';
+        const publicRoutes = ['/login'];
+        if (!session && !publicRoutes.includes(hash)) {
+          navigate('/login');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
